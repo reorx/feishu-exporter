@@ -27,9 +27,11 @@
 
   // listen chrome message
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'export') {
-      console.log('feishu-exporter inject.js: receive message', request)
+    if (request.action === 'ping') {
       sendResponse('pong')
+    } else if (request.action === 'export') {
+      console.log('feishu-exporter inject.js: receive message', request)
+      sendResponse('')
       const typeExts = request.typeExts
 
       const singleItemPath = parseItemPath(location.pathname)

@@ -1,5 +1,3 @@
-const injectedTabs = {}
-
 console.log('bg start receiving')
 // listen to message from popup.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -12,7 +10,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     .then(tabs => {
       const tab = tabs[0];
 
-      const sendMessage = () => {
+      const sendExportMessage = () => {
         chrome.tabs.sendMessage(tab.id, {
           action: 'export',
           typeExts: request.typeExts,
@@ -21,23 +19,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
       }
 
-      console.log(`tab ${tab.id}: check injectedTabs`, injectedTabs)
-
-      if (injectedTabs[tab.id]) {
-        console.log(`tab ${tab.id}: already injected`)
-        sendMessage()
-      } else {
-        console.log(`tab ${tab.id}: start injection`)
-        injectedTabs[tab.id] = true
-        // fisrt inject script
-        chrome.scripting.executeScript({
-          target: {tabId: tab.id},
-          files: ['inject.js']
-        }, () => {
-          // then send message to inject.js
-          sendMessage()
-        });
-      }
+      console.log(`tab ${tab.id}: check if tab is injected by sending ping message`)
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'ping',
+      }, res => {
+        // if not injected, the following error will raise:
+        // Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist.
+        if (chrome.runtime.lastError) {
+          console.log(`tab ${tab.id}: ping no response, start injection`)
+          // fisrt inject script
+          chrome.scripting.executeScript({
+            target: {tabId: tab.id},
+            files: ['inject.js']
+          }, () => {
+            // then send message to inject.js
+            sendExportMessage()
+          });
+        } else {
+          console.log(`tab ${tab.id}: ping responses ${res}, already injected`)
+          sendExportMessage()
+        }
+      })
     })
   }
 })
