@@ -19,8 +19,38 @@
     throw new Error('no csrf token')
   }
 
-  const exportDoc = (docId, name) => {
-    console.log(`exporting doc: name=${name} id=${docId}`)
+  // listen chrome message
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'export') {
+      console.log('receive message', request)
+      sendResponse('pong')
+      const ext = request.ext
+
+      if (location.pathname.startsWith('/docs/')) {
+        console.log('in doc page')
+        const docId = getDocIdFromPath(location.pathname)
+        const name = document.querySelector('.note-title p').innerText
+        exportDoc(docId, name, ext)
+      } else if (location.pathname.startsWith('/drive/')) {
+        console.log('in drive page')
+        document.querySelectorAll('.file-list-item.selected').forEach(item => {
+          const a = item.querySelector('a')
+          if (!a) {
+            throw new Error('cannot parse selected item: a', item)
+          }
+          const span = item.querySelector('span[title]')
+          if (!span) {
+            throw new Error('cannot parse selected item: span', item)
+          }
+
+          exportDoc(getDocIdFromPath(a.href), span.innerText, ext)
+        })
+      }
+    }
+  })
+
+  const exportDoc = (docId, name, ext) => {
+    console.log(`exporting doc: name=${name} ext=${ext} id=${docId}`)
     // create export task
     // POST https://your-company.feishu.cn/space/api/export/create/
     // request: {"token":"do4cnx3yi4xV1CNX7CxLcuPcwBc","type":"doc","file_extension":"pdf","event_source":"1"}
@@ -37,7 +67,7 @@
       body: JSON.stringify({
         token: docId,
         type: 'doc',
-        file_extension: 'pdf',
+        file_extension: ext,
         event_source: '1'
       })
     })
@@ -61,7 +91,7 @@
       // GET https://your-company.feishu.cn/space/api/box/stream/download/all/boxcnBTyV6fBAjusDWW8QHFO3Sd
       return downloadURIBlob(
         `${feishuDomain}/space/api/box/stream/download/all/${fileToken}`,
-        `${name}.pdf`)
+        `${name}.${ext}`)
     })
 
     // recursively request for file_token until it returns
@@ -86,27 +116,6 @@
         }
       })
     }
-  }
-
-  if (location.pathname.startsWith('/docs/')) {
-    console.log('in doc page')
-    const docId = getDocIdFromPath(location.pathname)
-    const name = document.querySelector('.note-title p').innerText
-    exportDoc(docId, name)
-  } else if (location.pathname.startsWith('/drive/')) {
-    console.log('in drive page')
-    document.querySelectorAll('.file-list-item.selected').forEach(item => {
-      const a = item.querySelector('a')
-      if (!a) {
-        throw new Error('cannot parse selected item: a', item)
-      }
-      const span = item.querySelector('span[title]')
-      if (!span) {
-        throw new Error('cannot parse selected item: span', item)
-      }
-
-      exportDoc(getDocIdFromPath(a.href), span.innerText)
-    })
   }
 
   /* utils */

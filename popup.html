@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #title {
+      padding: 3px 0 5px;
+      border-bottom: 1px solid #aaa;
+      margin-bottom: 6px;
+    }
+    #menu {
+      font-size: 14px;
+    }
+    .item {
+    }
+    .item a,
+    .item a:visited {
+      display: block;
+      padding: 5px 10px;
+      min-width: 100px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .item a:hover {
+      background: #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Export as:</div>
+  <div id="menu">
+    <div class="item"><a data-ext="pdf">PDF</a></div>
+    <div class="item"><a data-ext="docx">Word</a></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

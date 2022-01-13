@@ -13,7 +13,8 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Export current or selected Feishu doc(s)"
+    "default_title": "Export current or selected Feishu doc(s)",
+    "default_popup": "popup.html"
   },
   "commands": {
     "_execute_action": {
