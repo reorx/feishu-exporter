@@ -1,5 +1,5 @@
 (() => {
-  console.log('injected from feishu-exporter')
+  console.info('injected from feishu-exporter')
 
   // prepare parameters
   const feishuDomain = location.origin

@@ -5,6 +5,8 @@ document.querySelector('#menu').addEventListener('click', function(e) {
     sendItemClick(ext, () => {
       window.close()
     })
+    e.stopPropagation()
+    return false
   }
 });
 

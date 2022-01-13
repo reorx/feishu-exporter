@@ -11,21 +11,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.tabs.query({active: true, currentWindow: true})
     .then(tabs => {
       const tab = tabs[0];
-      console.log('inject tab', tab.id, tab)
-      injectedTabs[tab.id] = true
-      // fisrt inject script
-      chrome.scripting.executeScript({
-        target: {tabId: tab.id},
-        files: ['inject.js']
-      }, () => {
-        // then send message to inject.js
+
+      const sendMessage = () => {
         chrome.tabs.sendMessage(tab.id, {
           action: 'export',
           typeExts: request.typeExts,
         }, res => {
           console.log('bg export res', res)
         })
-      });
+      }
+
+      console.log(`tab ${tab.id}: check injectedTabs`, injectedTabs)
+
+      if (injectedTabs[tab.id]) {
+        console.log(`tab ${tab.id}: already injected`)
+        sendMessage()
+      } else {
+        console.log(`tab ${tab.id}: start injection`)
+        injectedTabs[tab.id] = true
+        // fisrt inject script
+        chrome.scripting.executeScript({
+          target: {tabId: tab.id},
+          files: ['inject.js']
+        }, () => {
+          // then send message to inject.js
+          sendMessage()
+        });
+      }
     })
   }
 })
