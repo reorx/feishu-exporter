@@ -11,6 +11,7 @@ document.querySelector('#menu').addEventListener('click', function(e) {
 const defaultTypeExts = {
   doc: 'docx',  // docs, pdf
   sheet: 'xlsx',  // xlsx, csv
+  bitable: 'xlsx',  // xlsx, csv
 }
 
 

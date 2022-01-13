@@ -8,30 +8,27 @@
     throw new Error('no csrf token')
   }
   // console.log('csrfToken: ', csrfToken)
-  const itemRegex = /^\/(docs|sheets)\/(.*)$/
+  const itemPathRegex = /^\/(docs|sheets|base)\/(.*)$/
+  const pathTypes = {
+    docs: 'doc',
+    sheets: 'sheet',
+    base: 'bitable',
+  }
   const parseItemPath = path => {
-    const match = itemRegex.exec(path)
+    const match = itemPathRegex.exec(path)
     if (!match) {
       return
     }
-    const v = {
+    return {
+      type: pathTypes[match[1]],
       id: match[2],
     }
-    switch (match[1]) {
-      case 'docs':
-        v.type = 'doc'
-        break
-      case 'sheets':
-        v.type = 'sheet'
-        break
-    }
-    return v
   }
 
   // listen chrome message
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'export') {
-      console.log('receive message', request)
+      console.log('feishu-exporter inject.js: receive message', request)
       sendResponse('pong')
       const typeExts = request.typeExts
 
@@ -45,6 +42,7 @@
             name = document.querySelector('.note-title p').innerText
             break
           case 'sheet':
+          case 'bitable':
             name = document.querySelector('.note-title__input-new').value
             break
         }
@@ -76,11 +74,15 @@
 
   class ItemExporter {
     constructor(type, id, name, typeExts) {
-      this.type = type  // docs or sheets
+      this.type = type
       this.id = id
       this.name = name
       this.ext = typeExts[this.type]
-      console.log(`ItemExporter init: name=${this.name} ext=${this.ext} type=${this.type} id=${this.id}`)
+      console.log(`${this.repr}: init`)
+    }
+
+    get repr() {
+      return `Item(${this.name}.${this.ext}, ${this.type}, ${this.id})`
     }
 
     export() {
@@ -106,7 +108,7 @@
       })
       .then(response => response.json())
       .then(json => {
-        console.log('create task response: ', json)
+        console.log(`${this.repr}: create task response: `, json)
         if (!json.data) {
           throw new Error('create task failed: no data')
         }
@@ -128,7 +130,7 @@
 
     // recursively request for file_token until it returns
     getFileToken(ticket, retryCount = 0) {
-      console.log(`getFileToken, count=${retryCount++}`)
+      console.log(`${this.repr}: getFileToken, count=${retryCount++}`)
       // GET https://your-company.feishu.cn/space/api/export/result/7052560242755582533?token=do4cnx3yi4xV1CNX7CxLcuPcwBc&type=doc
       // response (not prepared):
       // {"code":0,"data":{"result":{"extra":null,"file_extension":"","file_name":"","file_size":0,"file_token":"","job_error_msg":"","job_status":2,"type":""}},"msg":"success"}
