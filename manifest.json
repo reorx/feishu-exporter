@@ -1,0 +1,32 @@
+{
+  "name": "Feishu Exporter",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "description": "Export Feishu docs with ease",
+  "author": "Reorx <novoreorx@gmail.com>",
+  "icons": {
+    "16": "logo-580.png",
+    "48": "logo-580.png",
+    "128": "logo-580.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Export current or selected Feishu doc(s)"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+U",
+        "mac": "Command+U"
+      }
+    }
+  },
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "scripting"
+  ]
+}
