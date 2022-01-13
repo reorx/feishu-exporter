@@ -39,7 +39,15 @@
       if (singleItemPath) {
         // single item page
         console.log('single item page', location.pathname)
-        const name = document.querySelector('.note-title p').innerText
+        let name
+        switch (singleItemPath.type) {
+          case 'doc':
+            name = document.querySelector('.note-title p').innerText
+            break
+          case 'sheet':
+            name = document.querySelector('.note-title__input-new').value
+            break
+        }
         new ItemExporter(singleItemPath.type, singleItemPath.id, name, typeExts).export()
       } else if (location.pathname.startsWith('/drive/')) {
         // multiple item page
@@ -149,7 +157,7 @@
   }
 
   function getCookie(key) {
-    var value
+    let value
     document.cookie.split(';').forEach(c => {
       c = c.trim()
       const sp = c.split('=')

@@ -2,8 +2,9 @@ document.querySelector('#menu').addEventListener('click', function(e) {
   if (e.target.tagName === 'A') {
     var ext = e.target.dataset.ext;
     console.log('clicked ext', ext)
-    sendItemClick(ext)
-    // window.close()
+    sendItemClick(ext, () => {
+      window.close()
+    })
   }
 });
 
@@ -13,7 +14,7 @@ const defaultTypeExts = {
 }
 
 
-const sendItemClick = (ext) => {
+const sendItemClick = (ext, callback) => {
   // send message to background.js
   const typeExts = Object.assign({}, defaultTypeExts)
   typeExts.doc = ext
@@ -23,5 +24,6 @@ const sendItemClick = (ext) => {
     typeExts,
   }, res => {
     console.log('popup resp', res)
+    callback()
   })
 }
