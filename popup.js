@@ -7,12 +7,20 @@ document.querySelector('#menu').addEventListener('click', function(e) {
   }
 });
 
+const defaultTypeExts = {
+  doc: 'docx',  // docs, pdf
+  sheet: 'xlsx',  // xlsx, csv
+}
+
 
 const sendItemClick = (ext) => {
   // send message to background.js
+  const typeExts = Object.assign({}, defaultTypeExts)
+  typeExts.doc = ext
+
   chrome.runtime.sendMessage({
     action: 'start',
-    ext,
+    typeExts,
   }, res => {
     console.log('popup resp', res)
   })

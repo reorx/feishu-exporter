@@ -3,7 +3,7 @@ const injectedTabs = {}
 console.log('bg start receiving')
 // listen to message from popup.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('receive message', request)
+  console.log('bg receives message', request)
   if (request.action === 'start') {
     sendResponse('pong')
 
@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // then send message to inject.js
         chrome.tabs.sendMessage(tab.id, {
           action: 'export',
-          ext: request.ext,
+          typeExts: request.typeExts,
         }, res => {
           console.log('bg export res', res)
         })

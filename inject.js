@@ -3,20 +3,29 @@
 
   // prepare parameters
   const feishuDomain = location.origin
-
-  // get `_csrf_token` from cookie
-  var csrfToken
-  document.cookie.split(';').forEach(c => {
-    // strip space for c
-    c = c.trim()
-    if (c.startsWith('_csrf_token')) {
-      csrfToken = c.split('=')[1]
-      return
-    }
-  })
-  console.log('csrfToken: ', csrfToken)
+  const csrfToken = getCookie('_csrf_token')
   if (!csrfToken) {
     throw new Error('no csrf token')
+  }
+  // console.log('csrfToken: ', csrfToken)
+  const itemRegex = /^\/(docs|sheets)\/(.*)$/
+  const parseItemPath = path => {
+    const match = itemRegex.exec(path)
+    if (!match) {
+      return
+    }
+    const v = {
+      id: match[2],
+    }
+    switch (match[1]) {
+      case 'docs':
+        v.type = 'doc'
+        break
+      case 'sheets':
+        v.type = 'sheet'
+        break
+    }
+    return v
   }
 
   // listen chrome message
@@ -24,15 +33,17 @@
     if (request.action === 'export') {
       console.log('receive message', request)
       sendResponse('pong')
-      const ext = request.ext
+      const typeExts = request.typeExts
 
-      if (location.pathname.startsWith('/docs/')) {
-        console.log('in doc page')
-        const docId = getDocIdFromPath(location.pathname)
+      const singleItemPath = parseItemPath(location.pathname)
+      if (singleItemPath) {
+        // single item page
+        console.log('single item page', location.pathname)
         const name = document.querySelector('.note-title p').innerText
-        exportDoc(docId, name, ext)
+        new ItemExporter(singleItemPath.type, singleItemPath.id, name, typeExts).export()
       } else if (location.pathname.startsWith('/drive/')) {
-        console.log('in drive page')
+        // multiple item page
+        console.log('multiple item page')
         document.querySelectorAll('.file-list-item.selected').forEach(item => {
           const a = item.querySelector('a')
           if (!a) {
@@ -42,67 +53,80 @@
           if (!span) {
             throw new Error('cannot parse selected item: span', item)
           }
+          const path = a.getAttribute('href')
 
-          exportDoc(getDocIdFromPath(a.href), span.innerText, ext)
+          itemPath = parseItemPath(path)
+          if (!itemPath) {
+            console.warn('cannot match selected item href: ', path)
+            return
+          }
+          new ItemExporter(itemPath.type, itemPath.id, span.innerText, typeExts).export()
         })
       }
     }
   })
 
-  const exportDoc = (docId, name, ext) => {
-    console.log(`exporting doc: name=${name} ext=${ext} id=${docId}`)
-    // create export task
-    // POST https://your-company.feishu.cn/space/api/export/create/
-    // request: {"token":"do4cnx3yi4xV1CNX7CxLcuPcwBc","type":"doc","file_extension":"pdf","event_source":"1"}
-    // response: {"code":0,"data":{"job_timeout":600,"ticket":"7052560242755582533"},"msg":"success"}
-    const taskUrl = `${feishuDomain}/space/api/export/create/`
-    // use fetch API to send post request to taskUrl
-    fetch(taskUrl, {
-      method: 'POST',
-      headers: {
-        'x-csrftoken': csrfToken,
-        'Accept': 'application/json, text/plain, */*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        token: docId,
-        type: 'doc',
-        file_extension: ext,
-        event_source: '1'
+  class ItemExporter {
+    constructor(type, id, name, typeExts) {
+      this.type = type  // docs or sheets
+      this.id = id
+      this.name = name
+      this.ext = typeExts[this.type]
+      console.log(`ItemExporter init: name=${this.name} ext=${this.ext} type=${this.type} id=${this.id}`)
+    }
+
+    export() {
+      // create export task
+      // POST https://your-company.feishu.cn/space/api/export/create/
+      // request: {"token":"do4cnx3yi4xV1CNX7CxLcuPcwBc","type":"doc","file_extension":"pdf","event_source":"1"}
+      // response: {"code":0,"data":{"job_timeout":600,"ticket":"7052560242755582533"},"msg":"success"}
+      const taskUrl = `${feishuDomain}/space/api/export/create/`
+      // use fetch API to send post request to taskUrl
+      fetch(taskUrl, {
+        method: 'POST',
+        headers: {
+          'x-csrftoken': csrfToken,
+          'Accept': 'application/json, text/plain, */*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: this.id,
+          type: this.type,
+          file_extension: this.ext,
+          event_source: '1'
+        })
       })
-    })
-    .then(response => response.json())
-    .then(json => {
-      console.log('create task response: ', json)
-      if (!json.data) {
-        throw new Error('create task failed: no data')
-      }
-      const ticket = json.data.ticket
-      if (!ticket) {
-        throw new Error('create task failed: no ticket')
-      }
-      return ticket
-    })
-    .then(ticket => {
-      return getFileToken(ticket)
-    })
-    .then(fileToken => {
-      // download file
-      // GET https://your-company.feishu.cn/space/api/box/stream/download/all/boxcnBTyV6fBAjusDWW8QHFO3Sd
-      return downloadURIBlob(
-        `${feishuDomain}/space/api/box/stream/download/all/${fileToken}`,
-        `${name}.${ext}`)
-    })
+      .then(response => response.json())
+      .then(json => {
+        console.log('create task response: ', json)
+        if (!json.data) {
+          throw new Error('create task failed: no data')
+        }
+        const ticket = json.data.ticket
+        if (!ticket) {
+          throw new Error('create task failed: no ticket')
+        }
+
+        return this.getFileToken(ticket)
+      })
+      .then(fileToken => {
+        // download file
+        // GET https://your-company.feishu.cn/space/api/box/stream/download/all/boxcnBTyV6fBAjusDWW8QHFO3Sd
+        return downloadURIBlob(
+          `${feishuDomain}/space/api/box/stream/download/all/${fileToken}`,
+          `${this.name}.${this.ext}`)
+      })
+    }
 
     // recursively request for file_token until it returns
-    function getFileToken(ticket, retryCount = 0) {
+    getFileToken(ticket, retryCount = 0) {
       console.log(`getFileToken, count=${retryCount++}`)
       // GET https://your-company.feishu.cn/space/api/export/result/7052560242755582533?token=do4cnx3yi4xV1CNX7CxLcuPcwBc&type=doc
       // response (not prepared):
       // {"code":0,"data":{"result":{"extra":null,"file_extension":"","file_name":"","file_size":0,"file_token":"","job_error_msg":"","job_status":2,"type":""}},"msg":"success"}
       // response (prepared)
       // {"code":0,"data":{"result":{"extra":null,"file_extension":"pdf","file_name":"测试文档","file_size":17729,"file_token":"boxcnBTyV6fBAjusDWW8QHFO3Sd","job_error_msg":"success","job_status":0,"type":"doc"}},"msg":"success"}
-      return fetch(`${feishuDomain}/space/api/export/result/${ticket}?token=${docId}&type=doc`)
+      return fetch(`${feishuDomain}/space/api/export/result/${ticket}?token=${this.id}&type=${this.type}`)
       .then(response => response.json())
       .then(json => {
         if (!json.data) {
@@ -112,7 +136,7 @@
         if (result.file_token) {
           return result.file_token
         } else {
-          return sleep(1000).then(() => getFileToken(ticket, retryCount))
+          return sleep(1000).then(() => this.getFileToken(ticket, retryCount))
         }
       })
     }
@@ -124,20 +148,17 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  function getDocIdFromPath(path) {
-    const pathSp = path.split('/')
-    return pathSp[pathSp.length - 1]
-  }
-
-  function downloadURI(uri, name = '') {
-      var link = document.createElement("a");
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.setAttribute('download', name);
-      link.href = uri;
-      console.log(`start download: uri=${uri}, name=${name}`, link)
-      link.click();
-      link.remove();
+  function getCookie(key) {
+    var value
+    document.cookie.split(';').forEach(c => {
+      c = c.trim()
+      const sp = c.split('=')
+      if (sp.length === 2 && sp[0] === key) {
+        value = sp[1]
+        return
+      }
+    })
+    return value
   }
 
   function downloadURIBlob(uri, name) {
